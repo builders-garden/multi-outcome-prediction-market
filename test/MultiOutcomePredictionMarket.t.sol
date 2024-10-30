@@ -105,10 +105,28 @@ contract MultiOutcomePredictionMarketTest is Test {
         predictionMarket.buy(1, 0, 10);
 
 
+
     }
 
     function testSellOptions() public {
         singleMarketCreation();
+
+        // Buy option 1 
+        uint256 costOfNextShare = predictionMarket.calculateBuyCost(1, 0, 1);
+        // cost of the first share should be equal to initial price (125000);
+        assertEq(costOfNextShare, 125000);
+        
+        deal(address(usdc), address(this), costOfNextShare);
+        usdc.approve(address(predictionMarket), costOfNextShare);
+        
+        // Log the actual approval
+        uint256 actualApproval = usdc.allowance(address(this), address(predictionMarket));
+        // buy from market 1, option 0, quantity 1
+        predictionMarket.buy(1, 0, 1);
+
+        uint256 rewardForNextShare = predictionMarket.calculateSellReturn(1, 0, 1);
+        
+        predictionMarket.sell(1,0,1);
     }
 
     function testOptionMarketResolutoin() public {

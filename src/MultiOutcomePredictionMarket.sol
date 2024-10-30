@@ -165,8 +165,9 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         require(userShares.shares[optionId] >= quantity, "Not enough shares to sell");
         require(!market.resolved, "Market is resolved");
         require(marketId <= marketCount, "Market dosen't exists");
-        market.options[optionId].shares -= quantity;
+
         uint sellReturn = calculateSellReturn(marketId, optionId, quantity);
+        market.options[optionId].shares -= quantity;
         uint sellReturnAfterFees = (sellReturn * 90 / 100);
 
         userVolume[msg.sender] -= sellReturnAfterFees;
@@ -258,7 +259,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
      * @return totalReturn Total return from the sale
      */
     function calculateSellReturn(uint256 marketId, uint256 optionId, uint256 quantity) public view returns (uint256 totalReturn) {
-        require(marketId < marketCount, "Invalid market ID");
         Market storage market = markets[marketId];
         require(optionId < market.options.length, "Invalid option ID");
         require(quantity > 0, "Quantity must be greater than zero");

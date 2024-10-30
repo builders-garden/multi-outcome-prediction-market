@@ -2279,7 +2279,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
      * @return totalReturn Total return from the sale
      */
     function calculateSellReturn(uint256 marketId, uint256 optionId, uint256 quantity) public view returns (uint256 totalReturn) {
-        require(marketId < marketCount, "Invalid market ID");
+     
         Market storage market = markets[marketId];
         require(optionId < market.options.length, "Invalid option ID");
         require(quantity > 0, "Quantity must be greater than zero");
