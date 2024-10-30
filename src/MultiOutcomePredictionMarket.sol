@@ -168,12 +168,12 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         uint sellReturn = calculateSellReturn(marketId, optionId, quantity);
         market.options[optionId].shares -= quantity;
-        uint sellReturnAfterFees = (sellReturn * 90 / 100);
+        
 
-        userVolume[msg.sender] -= sellReturnAfterFees;
-        market.prizePool -= sellReturnAfterFees;
+        userVolume[msg.sender] -= sellReturn;
+        market.prizePool -= sellReturn;
 
-        IERC20(USDC_BASE_SEPOLIA).transfer(msg.sender, sellReturnAfterFees);
+        IERC20(USDC_BASE_SEPOLIA).transfer(msg.sender, sellReturn);
 
         _updateMarketPrices(marketId);
     }

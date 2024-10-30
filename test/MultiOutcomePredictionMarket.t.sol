@@ -127,6 +127,8 @@ contract MultiOutcomePredictionMarketTest is Test {
         uint256 rewardForNextShare = predictionMarket.calculateSellReturn(1, 0, 1);
         
         predictionMarket.sell(1,0,1);
+        assertEq(rewardForNextShare, 125000);
+
     }
 
     function testOptionMarketResolutoin() public {
