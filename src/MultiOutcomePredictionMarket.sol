@@ -96,7 +96,11 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
      * @param winningOptionIndex Index of the winning option
      */
     function optimisticMarketResolution(uint marketId, uint winningOptionIndex) public onlyAdmin {
+
         Market storage market = markets[marketId];
+        require(!market.resolved, "This market already resolved");
+        require(marketId <= marketCount, "Market dosen't exists");
+        require(winningOptionIndex < market.options.length , "Option out of array bounds");
         market.winningOptionIndex = winningOptionIndex;
         market.resolved = true;
     }
@@ -125,10 +129,10 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
     function buy(uint256 marketId, uint256 optionId, uint256 quantity) public {
         Market storage market = markets[marketId];
         UserShares storage userShares = userMarketShares[msg.sender][marketId];
+        require(!isEmergencyState, "Contract is paused");
+        require(!market.resolved, "Market is resolved");
         require(optionId < market.options.length, "Invalid option ID");
         require(quantity > 0, "quantity must be greater than zero");
-        require(!market.resolved, "Market is resolved");
-        require(!isEmergencyState, "Contract is paused");
         require(marketId <= marketCount, "Market dosen't exists");
 
         if (userShares.shares.length == 0) {
@@ -160,11 +164,13 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
     function sell(uint256 marketId, uint256 optionId, uint256 quantity) public {
         Market storage market = markets[marketId];
         UserShares storage userShares = userMarketShares[msg.sender][marketId];
+        require(!isEmergencyState, "Contract is paused");
+        require(!market.resolved, "Market is resolved");
         require(optionId < market.options.length, "Invalid option ID");
         require(quantity > 0, "quantity must be greater than zero");
         require(userShares.shares[optionId] >= quantity, "Not enough shares to sell");
-        require(!market.resolved, "Market is resolved");
         require(marketId <= marketCount, "Market dosen't exists");
+        
 
         uint sellReturn = calculateSellReturn(marketId, optionId, quantity);
         market.options[optionId].shares -= quantity;
@@ -311,6 +317,17 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             optionsNames[i] = market.options[i].optionName;
         }
         
+    }
+
+    /**
+     * @notice Gets market winning option
+     * @param marketId ID of the market
+     * @return winningOption Index of the winning option
+     * @return winningOptionName Name of the winning option
+     */
+    function getMarketWinner(uint marketId) public view returns (uint winningOption, string memory winningOptionName){
+        winningOption = markets[marketId].winningOptionIndex;
+        winningOptionName = markets[marketId].options[winningOption].optionName;
     }
 
     /**

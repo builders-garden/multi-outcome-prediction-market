@@ -127,20 +127,90 @@ contract MultiOutcomePredictionMarketTest is Test {
         uint256 rewardForNextShare = predictionMarket.calculateSellReturn(1, 0, 1);
         
         predictionMarket.sell(1,0,1);
+        // Buying and selling right after should turn the price at its initial state
         assertEq(rewardForNextShare, 125000);
 
+        // expect revert when selling shares you don't own
+        vm.expectRevert();
+        predictionMarket.sell(1,0,1);
     }
 
     function testOptionMarketResolutoin() public {
         singleMarketCreation();
+        
+        // only admin shall call this function
+        vm.prank(address(1));
+        vm.expectRevert();
+        predictionMarket.optimisticMarketResolution(1, 1);
+
+        // expect revert when resolving non existent market
+        vm.expectRevert();
+        // resolve unexisting market 10 with option index 1 as winner;
+        predictionMarket.optimisticMarketResolution(10, 1);
+
+        // expect revert when resolving non existent option
+        vm.expectRevert();
+        // resolve marketId 1 with unexisting option as winner; 
+        predictionMarket.optimisticMarketResolution(1, 20);
+
+
+        // resolve marketId 1 with option index 1 as winner;
+        predictionMarket.optimisticMarketResolution(1, 1);
+        // assert winning index for market 1 is indeed option index 1
+        (uint winningIndex, )= predictionMarket.getMarketWinner(1);
+        assertEq(winningIndex, 1);
+
+
+        // expect revert if resolution already happened 
+        // resolve marketId 1 with option index 1 as winner;
+        vm.expectRevert();
+        predictionMarket.optimisticMarketResolution(1, 1);
     }
 
     function testBatchOptionMarketResolution() public {
-        singleMarketCreation();
+        // create 10 markets
+        for(uint i; i < 8; ++i){
+            singleMarketCreation();
+        }
+        
+        // create arrays for batching so that market 0 wins 0, market 1 wins 1 [..]
+        uint[] memory marketIds = new uint[](8);
+        uint[] memory winningIndexes = new uint[](8);
+        for (uint i; i < marketIds.length; i++) {
+            marketIds[i] = i + 1; // market ids start from 1, so we add +1
+            winningIndexes[i] = i;
+        }  
+
+        predictionMarket.batchOptimisticMarketResolution(marketIds, winningIndexes);
+
     }
 
     function testDeclareEmergency() public {
+        singleMarketCreationAnd1SharesAcquired();
 
+        // set emergency state
+        predictionMarket.declareEmergency(true);
+
+        // expect revert on selling when emergency state is activated;
+        vm.expectRevert();
+        predictionMarket.sell(1,0,1);
+        
+
+        // same for buying 
+
+        uint256 costOfNextShare = predictionMarket.calculateBuyCost(1, 0, 1);
+        deal(address(usdc), address(this), costOfNextShare);
+        usdc.approve(address(predictionMarket), costOfNextShare);
+        uint256 actualApproval = usdc.allowance(address(this), address(predictionMarket));
+  
+        vm.expectRevert();
+        predictionMarket.buy(1, 0, 1);
+
+        
+        // set emergency state to false
+        predictionMarket.declareEmergency(false);
+        // sell should go trough now
+        predictionMarket.sell(1,0,1);
     }
 
     function singleMarketCreation() internal {
@@ -162,5 +232,20 @@ contract MultiOutcomePredictionMarketTest is Test {
         bool isQuadratic = true;
 
         predictionMarket.createMarket(initialOptionPrices, optionNames, isQuadratic);
+    }
+
+    function singleMarketCreationAnd1SharesAcquired() internal {
+        singleMarketCreation();
+        uint256 costOfNextShare = predictionMarket.calculateBuyCost(1, 0, 1);
+        // cost of the first share should be equal to initial price (125000);
+        assertEq(costOfNextShare, 125000);
+        
+        deal(address(usdc), address(this), costOfNextShare);
+        usdc.approve(address(predictionMarket), costOfNextShare);
+        
+        // Log the actual approval
+        uint256 actualApproval = usdc.allowance(address(this), address(predictionMarket));
+        // buy from market 1, option 0, quantity 1
+        predictionMarket.buy(1, 0, 1);
     }
 }
