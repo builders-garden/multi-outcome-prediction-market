@@ -83,7 +83,10 @@ contract MultiOutcomePredictionMarketTest is Test {
         uint256 actualApproval = usdc.allowance(address(this), address(predictionMarket));
         // buy from market 1, option 0, quantity 1
         predictionMarket.buy(1, 0, 1);
-      
+        
+        // assert user owns one share of option 0
+        assertEq(predictionMarket.getUserSharesPerMarket(address(this), 1)[0], 1);
+
         // calculate next 10 shares cost and deal
         uint costOfNext10Shares = predictionMarket.calculateBuyCost(1, 0, 10);
         deal(address(usdc), address(this), costOfNext10Shares);
@@ -104,8 +107,8 @@ contract MultiOutcomePredictionMarketTest is Test {
         // test cost simulation is working properly when buying multiple shares
         predictionMarket.buy(1, 0, 10);
 
-
-
+        // assert user owns 1 + 10 shares of option 0
+        assertEq(predictionMarket.getUserSharesPerMarket(address(this), 1)[0], 11);
     }
 
     function testSellOptions() public {
@@ -123,16 +126,19 @@ contract MultiOutcomePredictionMarketTest is Test {
         uint256 actualApproval = usdc.allowance(address(this), address(predictionMarket));
         // buy from market 1, option 0, quantity 1
         predictionMarket.buy(1, 0, 1);
-
+        
+        assertEq(predictionMarket.getUserSharesPerMarket(address(this), 1)[0], 1);
         uint256 rewardForNextShare = predictionMarket.calculateSellReturn(1, 0, 1);
         
-        predictionMarket.sell(1,0,1);
+        predictionMarket.sell(1 ,0 ,1);
         // Buying and selling right after should turn the price at its initial state
         assertEq(rewardForNextShare, 125000);
-
+        // Assert that user has 0 shares of option 0 after selling
+        assertEq(predictionMarket.getUserSharesPerMarket(address(this), 1)[0], 0);
         // expect revert when selling shares you don't own
         vm.expectRevert();
         predictionMarket.sell(1,0,1);
+        
     }
 
     function testOptionMarketResolutoin() public {

@@ -174,7 +174,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         uint sellReturn = calculateSellReturn(marketId, optionId, quantity);
         market.options[optionId].shares -= quantity;
-        
+        userShares.shares[optionId] -= quantity;
 
         userVolume[msg.sender] -= sellReturn;
         market.prizePool -= sellReturn;
