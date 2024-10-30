@@ -2372,15 +2372,12 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         uint256 scaledShares = shares * IMPACT_POWER_SCALE;
         uint256 powResult = 0;
         
-        // Simple power approximation for demo
-        // In production, you'd want a more precise power function
+     
         if (power == IMPACT_POWER_SCALE) { // power = 1.0
             powResult = scaledShares;
         } else if (power == IMPACT_POWER_SCALE * 2) { // power = 2.0
             powResult = (shares * shares) * IMPACT_POWER_SCALE;
-        } else if (power == IMPACT_POWER_SCALE * 3/2) { // power = 1.5
-            powResult = (shares * Math.sqrt(shares * IMPACT_POWER_SCALE / 100)) * 100;
-        }
+        } 
         
         return (baseImpact * powResult) / IMPACT_POWER_SCALE;
     }
