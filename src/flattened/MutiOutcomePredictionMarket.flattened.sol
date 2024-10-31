@@ -197,7 +197,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             newMarket.options.push(Option(0, initialPrices[i], initialPrices[i], optionNames[i]));
         }   
 
-        marketCre
+        emit MarketCreated(marketId, optionsNames);
     }
 
     /**
