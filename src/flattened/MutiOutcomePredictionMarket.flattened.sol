@@ -84,7 +84,7 @@ interface IERC20 {
 
 interface IMultiOutcomePredictionMarket {
     
-    event MarketCreated(uint indexed marketId, string[] optionsNames);
+    event MarketCreated(uint indexed marketId, string[] optionNames);
     event MarketResolved(uint indexed marketId, uint winningOptionIndex, string winningOptionName);
     event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost);
     event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn);
@@ -197,7 +197,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             newMarket.options.push(Option(0, initialPrices[i], initialPrices[i], optionNames[i]));
         }   
 
-        emit MarketCreated(marketId, optionsNames);
+        emit MarketCreated(marketCount, optionNames);
     }
 
     /**
@@ -222,7 +222,11 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         market.winningOptionIndex = winningOptionIndex;
         market.resolved = true;
 
-        emit MarketResolved(marketId, winningOptionIndex, getMarketWinner(marketId));
+        emit MarketResolved(
+            marketId,
+            winningOptionIndex, 
+            markets[marketId].options[winningOptionIndex].optionName
+        );
     }
 
     /**
@@ -274,7 +278,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         _updateMarketPrices(marketId);
 
-        emit(BoughtShares(msg.sender, marketId, optionId, quantity, cost));
+        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost);
     }
 
     /**
@@ -305,7 +309,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         _updateMarketPrices(marketId);
 
-        emit SoldShares(user, marketId, optionId, quantity, sellReturn);
+        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn);
     }
 
     /**
@@ -572,6 +576,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         
         IERC20(USDC_BASE_SEPOLIA).transfer(msg.sender, userRewards);
 
-        emit Withdrawal(msg.sender, marketId, userWinningShares, reward);
+        emit Withdrawal(msg.sender, marketId, userWinningShares, userRewards);
     }   
 }

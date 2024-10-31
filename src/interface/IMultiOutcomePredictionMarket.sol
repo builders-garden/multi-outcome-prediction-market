@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 interface IMultiOutcomePredictionMarket {
     
-    event MarketCreated(uint indexed marketId, string[] optionsNames);
+    event MarketCreated(uint indexed marketId, string[] optionNames);
     event MarketResolved(uint indexed marketId, uint winningOptionIndex, string winningOptionName);
     event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost);
     event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn);
