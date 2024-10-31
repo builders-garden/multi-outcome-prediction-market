@@ -196,6 +196,8 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         for (uint256 i = 0; i < initialPrices.length; i++) {
             newMarket.options.push(Option(0, initialPrices[i], initialPrices[i], optionNames[i]));
         }   
+
+        marketCre
     }
 
     /**
@@ -219,6 +221,8 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         require(winningOptionIndex < market.options.length , "Option out of array bounds");
         market.winningOptionIndex = winningOptionIndex;
         market.resolved = true;
+
+        emit MarketResolved(marketId, winningOptionIndex, getMarketWinner(marketId));
     }
 
     /**
@@ -269,6 +273,8 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         IERC20(USDC_BASE_SEPOLIA).transferFrom(msg.sender, address(this), cost);
 
         _updateMarketPrices(marketId);
+
+        emit(BoughtShares(msg.sender, marketId, optionId, quantity, cost));
     }
 
     /**
@@ -298,6 +304,8 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         IERC20(USDC_BASE_SEPOLIA).transfer(msg.sender, sellReturn);
 
         _updateMarketPrices(marketId);
+
+        emit SoldShares(user, marketId, optionId, quantity, sellReturn);
     }
 
     /**
@@ -370,7 +378,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         // First share + arithmetic mean of remaining shares prices * number of remaining shares
         return firstShareCost + (remainingShares * (secondSharePrice + lastSharePrice) / 2);
     }
-    
+
     /**
     * @notice Calculates the return from selling shares with exact price matching
     * @param marketId ID of the target market
@@ -557,10 +565,13 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         Market memory market = markets[marketId];
         UserShares memory userShares = userMarketShares[msg.sender][marketId];
         require(!userShares.claimed, "Already claimed");
+        uint userWinningShares = userShares.shares[market.winningOptionIndex];
         uint totalWinningShares = market.options[market.winningOptionIndex].shares;
         uint rewardPerShare = market.prizePool / totalWinningShares;
-        uint userRewards = rewardPerShare * userShares.shares[market.winningOptionIndex];
+        uint userRewards = rewardPerShare * userWinningShares;
         
         IERC20(USDC_BASE_SEPOLIA).transfer(msg.sender, userRewards);
+
+        emit Withdrawal(msg.sender, marketId, userWinningShares, reward);
     }   
 }
