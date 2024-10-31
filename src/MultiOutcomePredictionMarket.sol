@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interface/IMultiOutcomePredictionMarket.sol";
 
@@ -24,7 +23,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
     uint256 public constant TOTAL_PRICE = 1e6;
     uint256 public constant IMPACT_POWER_SCALE = 1e3;
     uint256 public constant LINEAR_POWER = 1e3;    /// @dev 1.0 scaled
-    uint256 public constant QUADRATIC_POWER = 2e3; /// @dev 2.0 scaled
     uint256 public constant BASE_IMPACT_FACTOR = 100;
     address public  USDC_BASE_SEPOLIA;
     address public admin;
@@ -56,12 +54,10 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
      * @dev Initializes a market with given options and pricing model
      * @param initialPrices Array of initial prices for each option
      * @param optionNames Array of names for each option
-     * @param isQuadratic Whether to use quadratic or linear price impact
      */
     function createMarket(
         uint256[] memory initialPrices, 
-        string[] memory optionNames,
-        bool isQuadratic
+        string[] memory optionNames
     ) public onlyAdmin() {
         require(initialPrices.length == optionNames.length, "Prices and names length mismatch");
         require(initialPrices.length > 0, "Must provide initial prices");
@@ -75,7 +71,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         require(totalPrice == TOTAL_PRICE, "Prices must sum to TOTAL_PRICE");
 
         Market storage newMarket = markets[marketCount];
-        newMarket.impactPower = isQuadratic ? QUADRATIC_POWER : LINEAR_POWER;
 
         for (uint256 i = 0; i < initialPrices.length; i++) {
             newMarket.options.push(Option(0, initialPrices[i], initialPrices[i], optionNames[i]));
@@ -204,67 +199,69 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
     //║══════════════════════════════════════════╗
     //║    Pub View  Functions                   ║
     //║══════════════════════════════════════════╝
-
-    /**
-     * @notice Calculates the cost of buying shares
-     * @param marketId ID of the target market
-     * @param optionId ID of the option to buy
-     * @param quantity Number of shares to buy
-     * @return totalCost Total cost for the purchase
-     */
-    function calculateBuyCost(uint256 marketId, uint256 optionId, uint256 quantity) public view returns (uint256 totalCost) {
+    
+    /*
+    * @notice Calculates the cost of buying shares with exact price matching
+    * @param marketId ID of the target market
+    * @param optionId ID of the option to buy
+    * @param quantity Number of shares to buy
+    * @return totalCost Total cost for the purchase
+    */
+    function calculateBuyCost(
+        uint256 marketId,
+        uint256 optionId,
+        uint256 quantity
+    ) public view returns (uint256 totalCost) {
         Market storage market = markets[marketId];
         require(optionId < market.options.length, "Invalid option ID");
         require(quantity > 0, "Quantity must be greater than zero");
 
+        // If buying 1 share, return current price
+        if (quantity == 1) {
+            return market.options[optionId].price;
+        }
+
         uint256 currentShares = market.options[optionId].shares;
+        uint256 firstShareCost = market.options[optionId].price;
         
-        // Special case for when there are no shares - return initial price * quantity
-        if (currentShares == 0) {
-            return market.options[optionId].initialPrice * quantity;
-        }
-
-        uint256 runningCost = 0;
-        
-        for (uint256 i = 0; i < quantity; i++) {
-            uint256 sumExp = 0;
-            for (uint256 j = 0; j < market.options.length; j++) {
-                Option storage option = market.options[j];
-                uint256 shares = option.shares;
-                if (j == optionId) {
-                    shares = currentShares + i;
-                }
-                uint256 currImpact = calculateImpact(
-                    shares,
-                    BASE_IMPACT_FACTOR,
-                    market.impactPower
-                );
-                uint256 currWeight = option.initialPrice + currImpact;
-                sumExp += currWeight;
+        // Calculate second share cost after theoretical first purchase
+        uint256 sumExp = 0;
+        for (uint256 i = 0; i < market.options.length; i++) {
+            uint256 shares = market.options[i].shares;
+            if (i == optionId) {
+                shares += 1; // Add the theoretical first share
             }
-
-            uint256 impact = calculateImpact(
-                currentShares + i,
-                BASE_IMPACT_FACTOR,
-                market.impactPower
-            );
-            uint256 weight = market.options[optionId].initialPrice + impact;
-            uint256 price = (weight * TOTAL_PRICE) / sumExp;
-            
-            runningCost += price;
+            uint256 currImpact = calculateImpact(shares);
+            uint256 currWeight = market.options[i].initialPrice + currImpact;
+            sumExp += currWeight;
         }
 
-        return runningCost;
-    }
+        // Calculate price for second share
+        uint256 impact = calculateImpact(currentShares + 1);
+        uint256 weight = market.options[optionId].initialPrice + impact;
+        uint256 secondSharePrice = (weight * TOTAL_PRICE) / sumExp;
 
+        // Calculate total cost using arithmetic progression for all quantities > 1
+        uint256 priceIncrement = secondSharePrice - firstShareCost;
+        uint256 remainingShares = quantity - 1;
+        uint256 lastSharePrice = firstShareCost + (priceIncrement * remainingShares);
+        
+        // First share + arithmetic mean of remaining shares prices * number of remaining shares
+        return firstShareCost + (remainingShares * (secondSharePrice + lastSharePrice) / 2);
+    }
+    
     /**
-     * @notice Calculates the return from selling shares
-     * @param marketId ID of the target market
-     * @param optionId ID of the option to sell
-     * @param quantity Number of shares to sell
-     * @return totalReturn Total return from the sale
-     */
-    function calculateSellReturn(uint256 marketId, uint256 optionId, uint256 quantity) public view returns (uint256 totalReturn) {
+    * @notice Calculates the return from selling shares with exact price matching
+    * @param marketId ID of the target market
+    * @param optionId ID of the option to sell
+    * @param quantity Number of shares to sell
+    * @return totalReturn Total return from the sale
+    */
+    function calculateSellReturn(
+        uint256 marketId,
+        uint256 optionId,
+        uint256 quantity
+    ) public view returns (uint256 totalReturn) {
         Market storage market = markets[marketId];
         require(optionId < market.options.length, "Invalid option ID");
         require(quantity > 0, "Quantity must be greater than zero");
@@ -272,26 +269,58 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         Option storage option = market.options[optionId];
         uint256 currentShares = option.shares;
         require(currentShares >= quantity, "Not enough shares to sell");
+        
+        // If current shares equals quantity to sell, no one else has shares
+        // so we can't have price impact - return initial price * quantity
+        if (currentShares == quantity) {
+            return option.initialPrice * quantity;
+        }
 
+        // Calculate the price as if we've already sold one share
         uint256 sumExp = 0;
         for (uint256 i = 0; i < market.options.length; i++) {
             uint256 shares = market.options[i].shares;
-            uint256 currImpact = calculateImpact(shares, BASE_IMPACT_FACTOR, market.impactPower);
+            if (i == optionId) {
+                shares -= 1; // Consider one share already sold
+            }
+            uint256 currImpact = calculateImpact(shares);
             uint256 currWeight = market.options[i].initialPrice + currImpact;
             sumExp += currWeight;
         }
 
-        uint256 impact = calculateImpact(currentShares, BASE_IMPACT_FACTOR, market.impactPower);
+        // Calculate first share return (at the price after theoretical first sale)
+        uint256 impact = calculateImpact(currentShares - 1);
         uint256 weight = option.initialPrice + impact;
-    
+        uint256 firstShareReturn = (weight * TOTAL_PRICE) / sumExp;
+
+        // If selling 1 share, return the calculated price
         if (quantity == 1) {
-            return option.initialPrice;
-        } else {
-            impact = calculateImpact(currentShares - quantity, BASE_IMPACT_FACTOR, market.impactPower);
-            weight = option.initialPrice + impact;
-            uint256 adjustedSellPrice = (weight * TOTAL_PRICE) / sumExp;
-            return quantity * adjustedSellPrice;
+            return firstShareReturn;
         }
+
+        // Calculate second share return after theoretical second sale
+        for (uint256 i = 0; i < market.options.length; i++) {
+            uint256 shares = market.options[i].shares;
+            if (i == optionId) {
+                shares -= 2; // Consider two shares already sold
+            }
+            uint256 currImpact = calculateImpact(shares);
+            uint256 currWeight = market.options[i].initialPrice + currImpact;
+            sumExp += currWeight;
+        }
+
+        // Calculate price for second share
+        impact = calculateImpact(currentShares - 2);
+        weight = option.initialPrice + impact;
+        uint256 secondSharePrice = (weight * TOTAL_PRICE) / sumExp;
+
+        // Calculate total return using arithmetic progression for all quantities > 1
+        uint256 priceDecrement = firstShareReturn - secondSharePrice;
+        uint256 remainingShares = quantity - 1;
+        uint256 lastSharePrice = firstShareReturn - (priceDecrement * remainingShares);
+        
+        // First share + arithmetic mean of remaining shares prices * number of remaining shares
+        return firstShareReturn + (remainingShares * (secondSharePrice + lastSharePrice) / 2);
     }
 
     /**
@@ -357,25 +386,14 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
      * @notice Calculates price impact using power law
      * @dev Uses simplified power approximation for demonstration
      * @param shares Number of shares
-     * @param baseImpact Base impact factor
-     * @param power Power factor
      * @return Calculated impact value
      */
-    function calculateImpact(uint256 shares, uint256 baseImpact, uint256 power) internal pure returns (uint256) {
+    function calculateImpact(uint256 shares) internal pure returns (uint256) {
         if (shares == 0) return 0;
-        if (shares == 1) return baseImpact;
+        if (shares == 1) return BASE_IMPACT_FACTOR;
         
-        uint256 scaledShares = shares * IMPACT_POWER_SCALE;
-        uint256 powResult = 0;
-        
-     
-        if (power == IMPACT_POWER_SCALE) { // power = 1.0
-            powResult = scaledShares;
-        } else if (power == IMPACT_POWER_SCALE * 2) { // power = 2.0
-            powResult = (shares * shares) * IMPACT_POWER_SCALE;
-        } 
-        
-        return (baseImpact * powResult) / IMPACT_POWER_SCALE;
+        uint256 scaledShares = shares * IMPACT_POWER_SCALE;    
+        return (BASE_IMPACT_FACTOR * scaledShares) / IMPACT_POWER_SCALE;
     }
 
     /**
@@ -391,9 +409,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         for (uint256 i = 0; i < optionCount; i++) {
             Option storage option = market.options[i];
             uint256 impact = calculateImpact(
-                option.shares, 
-                BASE_IMPACT_FACTOR,
-                market.impactPower
+                option.shares
             );
             uint256 weight = option.initialPrice + impact;
             sumExp += weight;
@@ -403,9 +419,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             for (uint256 i = 0; i < optionCount; i++) {
                 Option storage option = market.options[i];
                 uint256 impact = calculateImpact(
-                    option.shares, 
-                    BASE_IMPACT_FACTOR,
-                    market.impactPower
+                    option.shares
                 );
                 uint256 weight = option.initialPrice + impact;
                 option.price = (weight * TOTAL_PRICE) / sumExp;

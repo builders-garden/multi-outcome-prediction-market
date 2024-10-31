@@ -32,7 +32,7 @@ contract MultiOutcomePredictionMarketTest is Test {
 
         bool isQuadratic = true;
 
-        predictionMarket.createMarket(initialOptionPrices, optionNames, isQuadratic);
+        predictionMarket.createMarket(initialOptionPrices, optionNames);
         
         assertEq(predictionMarket.getMarketOptionCount(1), initialOptionPrices.length);
         assertEq(predictionMarket.marketCount(), 1);
@@ -50,22 +50,22 @@ contract MultiOutcomePredictionMarketTest is Test {
         // Expect a revert when sum of the options isnt precisely 1e6
         initialOptionPrices[0] = 125000 + 1;
         vm.expectRevert();
-        predictionMarket.createMarket(initialOptionPrices, optionNames, isQuadratic);
+        predictionMarket.createMarket(initialOptionPrices, optionNames);
         
         // Expect revert with length 0 array
         uint[] memory emptyPricesArray;
         string[] memory emptyNameArray;
         vm.expectRevert();
-        predictionMarket.createMarket(emptyPricesArray, emptyNameArray, isQuadratic);
+        predictionMarket.createMarket(emptyPricesArray, emptyNameArray);
         
         // Expect revert when prices and names length don't match
         vm.expectRevert();
-        predictionMarket.createMarket(emptyPricesArray, optionNames, isQuadratic);
+        predictionMarket.createMarket(emptyPricesArray, optionNames);
 
         // Expect revert if the msg.sender isn't admin
         vm.prank(address(1));
         vm.expectRevert();
-        predictionMarket.createMarket(initialOptionPrices, optionNames, isQuadratic);
+        predictionMarket.createMarket(initialOptionPrices, optionNames);
         
     }  
     
@@ -237,7 +237,7 @@ contract MultiOutcomePredictionMarketTest is Test {
 
         bool isQuadratic = true;
 
-        predictionMarket.createMarket(initialOptionPrices, optionNames, isQuadratic);
+        predictionMarket.createMarket(initialOptionPrices, optionNames);
     }
 
     function singleMarketCreationAnd1SharesAcquired() internal {
@@ -254,4 +254,5 @@ contract MultiOutcomePredictionMarketTest is Test {
         // buy from market 1, option 0, quantity 1
         predictionMarket.buy(1, 0, 1);
     }
+
 }
