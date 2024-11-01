@@ -74,6 +74,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         for (uint256 i = 0; i < initialPrices.length; i++) {
             newMarket.options.push(Option(0, initialPrices[i], initialPrices[i], optionNames[i]));
+            
         }   
 
         emit MarketCreated(marketCount, optionNames);
@@ -176,7 +177,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         require(userShares.shares[optionId] >= quantity, "Not enough shares to sell");
         require(marketId <= marketCount, "Market dosen't exists");
         
-
+        
         uint sellReturn = calculateSellReturn(marketId, optionId, quantity);
         market.options[optionId].shares -= quantity;
         userShares.shares[optionId] -= quantity;
@@ -212,8 +213,8 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
     //║    Pub View  Functions                   ║
     //║══════════════════════════════════════════╝
     
-    /*
-    * @notice Calculates the cost of buying shares with exact price matching
+
+    /* @notice Calculates the cost of buying shares with exact price matching
     * @param marketId ID of the target market
     * @param optionId ID of the option to buy
     * @param quantity Number of shares to buy
@@ -262,13 +263,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         return firstShareCost + (remainingShares * (secondSharePrice + lastSharePrice) / 2);
     }
 
-    /**
-    * @notice Calculates the return from selling shares with exact price matching
-    * @param marketId ID of the target market
-    * @param optionId ID of the option to sell
-    * @param quantity Number of shares to sell
-    * @return totalReturn Total return from the sale
-    */
     function calculateSellReturn(
         uint256 marketId,
         uint256 optionId,
@@ -282,13 +276,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         uint256 currentShares = option.shares;
         require(currentShares >= quantity, "Not enough shares to sell");
         
-        // If current shares equals quantity to sell, no one else has shares
-        // so we can't have price impact - return initial price * quantity
-        if (currentShares == quantity) {
-            return option.initialPrice * quantity;
-        }
-
-        // Calculate the price as if we've already sold one share
+        // Calculate first share return
         uint256 sumExp = 0;
         for (uint256 i = 0; i < market.options.length; i++) {
             uint256 shares = market.options[i].shares;
@@ -300,7 +288,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             sumExp += currWeight;
         }
 
-        // Calculate first share return (at the price after theoretical first sale)
         uint256 impact = calculateImpact(currentShares - 1);
         uint256 weight = option.initialPrice + impact;
         uint256 firstShareReturn = (weight * TOTAL_PRICE) / sumExp;
@@ -310,29 +297,25 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             return firstShareReturn;
         }
 
-        // Calculate second share return after theoretical second sale
+        // Calculate last share price
+        sumExp = 0;
         for (uint256 i = 0; i < market.options.length; i++) {
             uint256 shares = market.options[i].shares;
             if (i == optionId) {
-                shares -= 2; // Consider two shares already sold
+                shares -= quantity; // Consider all shares being sold
             }
             uint256 currImpact = calculateImpact(shares);
             uint256 currWeight = market.options[i].initialPrice + currImpact;
             sumExp += currWeight;
         }
-
-        // Calculate price for second share
-        impact = calculateImpact(currentShares - 2);
-        weight = option.initialPrice + impact;
-        uint256 secondSharePrice = (weight * TOTAL_PRICE) / sumExp;
-
-        // Calculate total return using arithmetic progression for all quantities > 1
-        uint256 priceDecrement = firstShareReturn - secondSharePrice;
-        uint256 remainingShares = quantity - 1;
-        uint256 lastSharePrice = firstShareReturn - (priceDecrement * remainingShares);
         
-        // First share + arithmetic mean of remaining shares prices * number of remaining shares
-        return firstShareReturn + (remainingShares * (secondSharePrice + lastSharePrice) / 2);
+        impact = calculateImpact(currentShares - quantity);
+        weight = option.initialPrice + impact;
+        uint256 lastShareReturn = (weight * TOTAL_PRICE) / sumExp;
+
+        // Calculate total return using arithmetic mean
+        uint256 remainingShares = quantity - 1;
+        return firstShareReturn + (remainingShares * (firstShareReturn + lastShareReturn) / 2);
     }
 
     /**
@@ -357,7 +340,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             total += prices[i];
             optionsNames[i] = market.options[i].optionName;
         }
-        
     }
 
     /**

@@ -138,7 +138,25 @@ contract MultiOutcomePredictionMarketTest is Test {
         // expect revert when selling shares you don't own
         vm.expectRevert();
         predictionMarket.sell(1,0,1);
+    }
+
+    function testBuyingAndSellingBackLeavesWithStartingBalance() public {
+        singleMarketCreation();
+
+        // this test is just to check prices are moving consistently, dosen't take into account
+        // other actors in the process
+
+        // buy 100 shares of option 0
+        uint256 costOf100Shares = predictionMarket.calculateBuyCost(1, 0, 100);
+        deal(address(usdc), address(this), costOf100Shares);
+        usdc.approve(address(predictionMarket), costOf100Shares);
+         predictionMarket.buy(1, 0, 100);
+        // sell 100 shares of option 0 
         
+        predictionMarket.sell(1,0, 50);
+
+        // assert balance is unchanged after that
+        assertEq(costOf100Shares, usdc.balanceOf(address(this)));
     }
 
     function testOptionMarketResolutoin() public {
