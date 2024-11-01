@@ -188,7 +188,7 @@ contract MultiOutcomePredictionMarketTest is Test {
             actualBalance >= expectedBalance - tolerance && actualBalance <= expectedBalance + tolerance,
             string(abi.encodePacked("Expected: ", uint2str(expectedBalance), " but got: ", uint2str(actualBalance)))
         );
-
+        // check if earnings are in range of 1% tolerance against dealt usdc 
         require(
             earned >= expectedBalance - tolerance && earned <= expectedBalance + tolerance,
             string(abi.encodePacked("Expected: ", uint2str(expectedBalance), " but got: ", uint2str(actualBalance)))
@@ -200,42 +200,42 @@ contract MultiOutcomePredictionMarketTest is Test {
         vm.assume((numOptions >= 4 && numOptions <= 12) && shareAmount >= 1 && shareAmount <= 1e4);
         uint amount = uint(shareAmount);
         createMarketWithDynamicOptions(uint(numOptions));
-        // this test is just to check prices are moving consistently, dosen't take into account
+         // this test is just to check prices are moving consistently, dosen't take into account
         // other actors in the process
         // buy 100 shares of option 0
         consoleLogMarketInfos(1, "before anything");
-        uint256 costOf100Shares = predictionMarket.calculateBuyCost(1, 0, 100);
-
-       
-        deal(address(usdc), address(this), costOf100Shares);
-        usdc.approve(address(predictionMarket), costOf100Shares);
-        predictionMarket.buy(1, 0, 100);
-
-        consoleLogMarketInfos(1, ("after buying 100 shares of 0"));
-        // sell 100 shares of option 0 
+        uint256 costOf100Shares;
+        uint dealt;
         
-        uint256 costOf100SharesAfter100On0 = predictionMarket.calculateBuyCost(1, 1, 100);
-   
-        console.log("Buy 1 for 100: ", costOf100SharesAfter100On0);
-        deal(address(usdc), address(this), costOf100SharesAfter100On0);
-        usdc.approve(address(predictionMarket), costOf100SharesAfter100On0);
-        predictionMarket.buy(1, 1, 100);
-        consoleLogMarketInfos(1, ("after buying 100 shares of 1"));
-        // sell 100 shares of option 0 
-  
-    
-        uint256 returnOf100Shares = predictionMarket.calculateSellReturn(1, 0, 100);
-        console.log("Sell 0 for 100: ",returnOf100Shares);
-        predictionMarket.sell(1,0, 100);
-        consoleLogMarketInfos(1, ("after selling 100 shares of 0"));
-      
-        uint returnOf100SharesAfter100SoldOn0 = predictionMarket.calculateSellReturn(1, 1, 100);
-        console.log("Sell 1 for 100: ",returnOf100Shares);
-        predictionMarket.sell(1,1, 100);
-        consoleLogMarketInfos(1, ("after selling 100 shares of 1"));
-  
+        for (uint i; i < numOptions; i++){
+            costOf100Shares =  predictionMarket.calculateBuyCost(1, i, 100);
+            deal(address(usdc), address(this), costOf100Shares);
+            dealt += costOf100Shares;
+            usdc.approve(address(predictionMarket), costOf100Shares);
+            predictionMarket.buy(1, i, 100);
+            consoleLogMarketInfos(1, string(abi.encodePacked("after buying 100 shares of ", uint2str(i))));
+        } 
+       
+        uint256 returnOf100Shares;
+        uint earned;
+
+        for (uint i; i < numOptions; i++){
+            uint preBal = usdc.balanceOf(address(this));
+            returnOf100Shares = predictionMarket.calculateSellReturn(1, i, 100);
+            
+            predictionMarket.sell(1,i, 100);
+            uint afterBal = usdc.balanceOf(address(this));
+            earned += afterBal - preBal;
+            consoleLogMarketInfos(1, string(abi.encodePacked("after selling 100 shares of ", uint2str(i))));
+        } 
+
+        //║══════════════════════════════════════════╗
+        //║    Balance asserts                       ║
+        //║══════════════════════════════════════════╝
+
+
         uint256 actualBalance = usdc.balanceOf(address(this));
-        uint256 expectedBalance = costOf100Shares + costOf100SharesAfter100On0;
+        uint256 expectedBalance = dealt;
 
         // Calculate 1% of the expected balance
         uint256 tolerance = expectedBalance * 1 / 1000;
@@ -243,6 +243,11 @@ contract MultiOutcomePredictionMarketTest is Test {
         // Check if the actual balance is within the 1% tolerance range of the expected balance
         require(
             actualBalance >= expectedBalance - tolerance && actualBalance <= expectedBalance + tolerance,
+            string(abi.encodePacked("Expected: ", uint2str(expectedBalance), " but got: ", uint2str(actualBalance)))
+        );
+        // check if earnings are in range of 1% tolerance against dealt usdc 
+        require(
+            earned >= expectedBalance - tolerance && earned <= expectedBalance + tolerance,
             string(abi.encodePacked("Expected: ", uint2str(expectedBalance), " but got: ", uint2str(actualBalance)))
         );
     }
