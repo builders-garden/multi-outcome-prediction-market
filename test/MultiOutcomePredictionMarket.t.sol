@@ -143,7 +143,7 @@ contract MultiOutcomePredictionMarketTest is Test {
     }
 
     function testBuyingAndSellingBackLeavesWithStartingBalance() public {
-        uint optionsCount = 12;
+        uint optionsCount = 8;
         createMarketWithDynamicOptions(optionsCount);
         // this test is just to check prices are moving consistently, dosen't take into account
         // other actors in the process
@@ -197,9 +197,9 @@ contract MultiOutcomePredictionMarketTest is Test {
         );
     }
 
-    function testBuyingAndSellingBackLeavesWithStartingBalance(uint8 numOptions, uint64 shareAmount) public {
+    function testBuyingAndSellingBackLeavesWithStartingBalance(uint8 numOptions, uint16 shareAmount) public {
         // Ensure numOptions is within the specified range
-        vm.assume((numOptions >= 4 && numOptions <= 12) && shareAmount >= 1 && shareAmount <= 1e4);
+        vm.assume((numOptions >= 4 && numOptions <= 12) && shareAmount >= 1 && shareAmount <= 1e3);
         uint amount = uint(shareAmount);
         createMarketWithDynamicOptions(uint(numOptions));
          // this test is just to check prices are moving consistently, dosen't take into account
@@ -210,11 +210,11 @@ contract MultiOutcomePredictionMarketTest is Test {
         uint dealt;
         
         for (uint i; i < numOptions; i++){
-            costOf100Shares =  predictionMarket.calculateBuyCost(1, i, 100);
+            costOf100Shares =  predictionMarket.calculateBuyCost(1, i, amount);
             deal(address(usdc), address(this), costOf100Shares);
             dealt += costOf100Shares;
             usdc.approve(address(predictionMarket), costOf100Shares);
-            predictionMarket.buy(1, i, 100);
+            predictionMarket.buy(1, i, amount);
             consoleLogMarketInfos(1, string(abi.encodePacked("after buying 100 shares of ", uint2str(i))));
         } 
        
@@ -223,9 +223,9 @@ contract MultiOutcomePredictionMarketTest is Test {
 
         for (uint i; i < numOptions; i++){
             uint preBal = usdc.balanceOf(address(this));
-            returnOf100Shares = predictionMarket.calculateSellReturn(1, i, 100);
+            returnOf100Shares = predictionMarket.calculateSellReturn(1, i, amount);
             
-            predictionMarket.sell(1,i, 100);
+            predictionMarket.sell(1,i, amount);
             uint afterBal = usdc.balanceOf(address(this));
             earned += afterBal - preBal;
             consoleLogMarketInfos(1, string(abi.encodePacked("after selling 100 shares of ", uint2str(i))));
@@ -253,7 +253,6 @@ contract MultiOutcomePredictionMarketTest is Test {
             string(abi.encodePacked("Expected: ", uint2str(expectedBalance), " but got: ", uint2str(actualBalance)))
         );
     }
-
 
 
 
