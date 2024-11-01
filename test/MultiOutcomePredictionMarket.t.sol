@@ -147,14 +147,19 @@ contract MultiOutcomePredictionMarketTest is Test {
         // other actors in the process
 
         // buy 100 shares of option 0
+        
         uint256 costOf100Shares = predictionMarket.calculateBuyCost(1, 0, 100);
+        console.log("Buy 100 for: ", costOf100Shares);
         deal(address(usdc), address(this), costOf100Shares);
         usdc.approve(address(predictionMarket), costOf100Shares);
-         predictionMarket.buy(1, 0, 100);
+        predictionMarket.buy(1, 0, 100);
         // sell 100 shares of option 0 
         
-        predictionMarket.sell(1,0, 50);
 
+        uint256 returnOf100Shares = predictionMarket.calculateSellReturn(1, 0, 100);
+        console.log("Sell 100 for: ",returnOf100Shares);
+        predictionMarket.sell(1,0, 100);
+        
         // assert balance is unchanged after that
         assertEq(costOf100Shares, usdc.balanceOf(address(this)));
     }
