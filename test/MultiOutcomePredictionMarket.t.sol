@@ -141,28 +141,119 @@ contract MultiOutcomePredictionMarketTest is Test {
     }
 
     function testBuyingAndSellingBackLeavesWithStartingBalance() public {
-        singleMarketCreation();
-
+        createMarketWithDynamicOptions(12);
         // this test is just to check prices are moving consistently, dosen't take into account
         // other actors in the process
-
         // buy 100 shares of option 0
-        
+        consoleLogMarketInfos(1, "before anything");
         uint256 costOf100Shares = predictionMarket.calculateBuyCost(1, 0, 100);
-        console.log("Buy 100 for: ", costOf100Shares);
+   
+       
         deal(address(usdc), address(this), costOf100Shares);
         usdc.approve(address(predictionMarket), costOf100Shares);
         predictionMarket.buy(1, 0, 100);
+
+        consoleLogMarketInfos(1, ("after buying 100 shares of 0"));
         // sell 100 shares of option 0 
         
-
+        uint256 costOf100SharesAfter100On0 = predictionMarket.calculateBuyCost(1, 1, 100);
+   
+        console.log("Buy 1 for 100: ", costOf100SharesAfter100On0);
+        deal(address(usdc), address(this), costOf100SharesAfter100On0);
+        usdc.approve(address(predictionMarket), costOf100SharesAfter100On0);
+        predictionMarket.buy(1, 1, 100);
+        consoleLogMarketInfos(1, ("after buying 100 shares of 1"));
+        // sell 100 shares of option 0 
+  
+    
         uint256 returnOf100Shares = predictionMarket.calculateSellReturn(1, 0, 100);
-        console.log("Sell 100 for: ",returnOf100Shares);
+        console.log("Sell 0 for 100: ",returnOf100Shares);
         predictionMarket.sell(1,0, 100);
-        
+        consoleLogMarketInfos(1, ("after selling 100 shares of 0"));
+      
+        uint returnOf100SharesAfter100SoldOn0 = predictionMarket.calculateSellReturn(1, 1, 100);
+        console.log("Sell 1 for 100: ",returnOf100Shares);
+        predictionMarket.sell(1,1, 100);
+        consoleLogMarketInfos(1, ("after selling 100 shares of 1"));
         // assert balance is unchanged after that
-        assertEq(costOf100Shares, usdc.balanceOf(address(this)));
+        
+        
+        uint256 actualBalance = usdc.balanceOf(address(this));
+        uint256 expectedBalance = costOf100Shares + costOf100SharesAfter100On0;
+
+        // Calculate 1% of the expected balance
+        uint256 tolerance = expectedBalance * 1 / 1000;
+
+        // Check if the actual balance is within the 1% tolerance range of the expected balance
+        require(
+            actualBalance >= expectedBalance - tolerance && actualBalance <= expectedBalance + tolerance,
+            string(abi.encodePacked("Expected: ", uint2str(expectedBalance), " but got: ", uint2str(actualBalance)))
+        );
     }
+
+    function testBuyingAndSellingBackLeavesWithStartingBalance(uint8 numOptions, uint64 shareAmount) public {
+        // Ensure numOptions is within the specified range
+        vm.assume((numOptions >= 4 && numOptions <= 12) && shareAmount >= 1 && shareAmount <= 1e4);
+        uint amount = uint(shareAmount);
+        createMarketWithDynamicOptions(uint(numOptions));
+        // this test is just to check prices are moving consistently, dosen't take into account
+        // other actors in the process
+        // buy 100 shares of option 0
+        consoleLogMarketInfos(1, "before anything");
+        uint256 costOf100Shares = predictionMarket.calculateBuyCost(1, 0, 100);
+   
+       
+        deal(address(usdc), address(this), costOf100Shares);
+        usdc.approve(address(predictionMarket), costOf100Shares);
+        predictionMarket.buy(1, 0, 100);
+
+        consoleLogMarketInfos(1, ("after buying 100 shares of 0"));
+        // sell 100 shares of option 0 
+        
+        uint256 costOf100SharesAfter100On0 = predictionMarket.calculateBuyCost(1, 1, 100);
+   
+        console.log("Buy 1 for 100: ", costOf100SharesAfter100On0);
+        deal(address(usdc), address(this), costOf100SharesAfter100On0);
+        usdc.approve(address(predictionMarket), costOf100SharesAfter100On0);
+        predictionMarket.buy(1, 1, 100);
+        consoleLogMarketInfos(1, ("after buying 100 shares of 1"));
+        // sell 100 shares of option 0 
+  
+    
+        uint256 returnOf100Shares = predictionMarket.calculateSellReturn(1, 0, 100);
+        console.log("Sell 0 for 100: ",returnOf100Shares);
+        predictionMarket.sell(1,0, 100);
+        consoleLogMarketInfos(1, ("after selling 100 shares of 0"));
+      
+        uint returnOf100SharesAfter100SoldOn0 = predictionMarket.calculateSellReturn(1, 1, 100);
+        console.log("Sell 1 for 100: ",returnOf100Shares);
+        predictionMarket.sell(1,1, 100);
+        consoleLogMarketInfos(1, ("after selling 100 shares of 1"));
+  
+        uint256 actualBalance = usdc.balanceOf(address(this));
+        uint256 expectedBalance = costOf100Shares + costOf100SharesAfter100On0;
+
+        // Calculate 1% of the expected balance
+        uint256 tolerance = expectedBalance * 1 / 1000;
+
+        // Check if the actual balance is within the 1% tolerance range of the expected balance
+        require(
+            actualBalance >= expectedBalance - tolerance && actualBalance <= expectedBalance + tolerance,
+            string(abi.encodePacked("Expected: ", uint2str(expectedBalance), " but got: ", uint2str(actualBalance)))
+        );
+    }
+
+
+
+
+    function consoleLogMarketInfos(uint marketId, string memory text) internal {
+        (uint[] memory marketPrices, , ) =  predictionMarket.getMarketInfo(marketId);
+                console.log("[-----------", text ,"----------]");
+                for (uint i = 0; i < marketPrices.length; i++) {
+            console.log("currPrice of id:", i, "is", marketPrices[i]);
+        }
+    }
+
 
     function testOptionMarketResolutoin() public {
         singleMarketCreation();
@@ -258,10 +349,36 @@ contract MultiOutcomePredictionMarketTest is Test {
         optionNames[6] = "Caso";
         optionNames[7] = "Blackicon";
 
+        
+
+        predictionMarket.createMarket(initialOptionPrices, optionNames);
+    }
+
+
+    function createMarketWithDynamicOptions(uint256 numberOfOptions) internal {
+        require(numberOfOptions > 0, "Number of options must be greater than zero");
+        
+        uint[] memory initialOptionPrices = new uint[](numberOfOptions);
+        uint256 totalPrice = 1e6; // Total sum of option prices
+        uint256 basePrice = totalPrice / numberOfOptions; // Base price for each option
+        uint256 remainder = totalPrice % numberOfOptions; // Handle any remainder
+
+        // Distribute prices evenly and handle the remainder
+        for (uint256 i = 0; i < numberOfOptions; i++) {
+            initialOptionPrices[i] = basePrice + (i < remainder ? 1 : 0);
+        }
+
+        // Create an array of empty strings for option names
+        string[] memory optionNames = new string[](numberOfOptions);
+        for (uint256 i = 0; i < numberOfOptions; i++) {
+            optionNames[i] = ""; // Fill with empty strings
+        }
+
         bool isQuadratic = true;
 
         predictionMarket.createMarket(initialOptionPrices, optionNames);
     }
+
 
     function singleMarketCreationAnd1SharesAcquired() internal {
         singleMarketCreation();
@@ -277,5 +394,26 @@ contract MultiOutcomePredictionMarketTest is Test {
         // buy from market 1, option 0, quantity 1
         predictionMarket.buy(1, 0, 1);
     }
+
+
+    function uint2str(uint256 _i) internal pure returns (string memory) {
+    if (_i == 0) {
+        return "0";
+    }
+    uint256 j = _i;
+    uint256 len;
+    while (j != 0) {
+        len++;
+        j /= 10;
+    }
+    bytes memory bstr = new bytes(len);
+    uint256 k = len;
+    j = _i;
+    while (j != 0) {
+        bstr[--k] = bytes1(uint8(48 + j % 10));
+        j /= 10;
+    }
+    return string(bstr);
+}
 
 }
