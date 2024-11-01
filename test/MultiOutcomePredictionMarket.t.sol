@@ -71,6 +71,7 @@ contract MultiOutcomePredictionMarketTest is Test {
     
     function testBuyOptions() public{
         // create market 1
+        // Init a market with 125_000 * 8
         singleMarketCreation();
         uint256 costOfNextShare = predictionMarket.calculateBuyCost(1, 0, 1);
         // cost of the first share should be equal to initial price (125000);
@@ -112,6 +113,7 @@ contract MultiOutcomePredictionMarketTest is Test {
     }
 
     function testSellOptions() public {
+        // Init a market with 125_000 * 8
         singleMarketCreation();
 
         // Buy option 1 
@@ -265,6 +267,7 @@ contract MultiOutcomePredictionMarketTest is Test {
 
 
     function testOptionMarketResolutoin() public {
+        // Init a market with 125_000 * 8
         singleMarketCreation();
         
         // only admin shall call this function
@@ -299,6 +302,7 @@ contract MultiOutcomePredictionMarketTest is Test {
     function testBatchOptionMarketResolution() public {
         // create 10 markets
         for(uint i; i < 8; ++i){
+            // Init a market with 125_000 * 8
             singleMarketCreation();
         }
         
@@ -390,6 +394,7 @@ contract MultiOutcomePredictionMarketTest is Test {
 
 
     function singleMarketCreationAnd1SharesAcquired() internal {
+        // Init a market with 125_000 * 8
         singleMarketCreation();
         uint256 costOfNextShare = predictionMarket.calculateBuyCost(1, 0, 1);
         // cost of the first share should be equal to initial price (125000);

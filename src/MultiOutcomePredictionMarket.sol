@@ -272,11 +272,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         require(optionId < market.options.length, "Invalid option ID");
         require(quantity > 0, "Quantity must be greater than zero");
 
-        // If buying 1 share, return current price
-        if (quantity == 1) {
-            return market.options[optionId].price;
-        }
-
+       
         uint256 currentShares = market.options[optionId].shares;
         
         
@@ -308,8 +304,6 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             uint256 currWeight = market.options[i].initialPrice + currImpact;
             sumExp += currWeight;
         }
-
-       
 
         // Calculate price for second share
         impact = calculateImpact((currentShares - quantity) + 1 );
