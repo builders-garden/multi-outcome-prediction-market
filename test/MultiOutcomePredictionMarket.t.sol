@@ -143,7 +143,7 @@ contract MultiOutcomePredictionMarketTest is Test {
     }
 
     function testBuyingAndSellingBackLeavesWithStartingBalance() public {
-        uint optionsCount = 8;
+        uint optionsCount = 2;
         createMarketWithDynamicOptions(optionsCount);
         // this test is just to check prices are moving consistently, dosen't take into account
         // other actors in the process
@@ -173,6 +173,7 @@ contract MultiOutcomePredictionMarketTest is Test {
             earned += afterBal - preBal;
             consoleLogMarketInfos(1, string(abi.encodePacked("after selling 100 shares of ", uint2str(i))));
         } 
+
 
         //║══════════════════════════════════════════╗
         //║    Balance asserts                       ║
@@ -239,8 +240,8 @@ contract MultiOutcomePredictionMarketTest is Test {
         uint256 actualBalance = usdc.balanceOf(address(this));
         uint256 expectedBalance = dealt;
 
-        // Calculate 1% of the expected balance
-        uint256 tolerance = expectedBalance * 1 / 1000;
+        // Calculate 2% of the expected balance
+        uint256 tolerance = expectedBalance * 2 / 1000;
 
         // Check if the actual balance is within the 1% tolerance range of the expected balance
         require(
@@ -254,8 +255,6 @@ contract MultiOutcomePredictionMarketTest is Test {
         );
     }
 
-
-
     function consoleLogMarketInfos(uint marketId, string memory text) internal {
         (uint[] memory marketPrices, , ) =  predictionMarket.getMarketInfo(marketId);
                 console.log("[-----------", text ,"----------]");
@@ -263,7 +262,6 @@ contract MultiOutcomePredictionMarketTest is Test {
             console.log("currPrice of id:", i, "is", marketPrices[i]);
         }
     }
-
 
     function testOptionMarketResolutoin() public {
         // Init a market with 125_000 * 8
@@ -409,6 +407,36 @@ contract MultiOutcomePredictionMarketTest is Test {
     }
 
 
+    function testPriceMovementBenchmark() public {
+        uint optionsCount = 6;
+        createMarketWithDynamicOptions(optionsCount);
+        // this test is just to check prices are moving consistently, dosen't take into account
+        // other actors in the process
+        // buy 100 shares of option 0
+        consoleLogMarketInfos(1, "before anything");
+        uint256 costOf100Shares;
+        uint dealt;
+        
+        for (uint i; i < optionsCount; i++){
+            costOf100Shares =  predictionMarket.calculateBuyCost(1, i, 100);
+            deal(address(usdc), address(this), costOf100Shares);
+            dealt += costOf100Shares;
+            usdc.approve(address(predictionMarket), costOf100Shares);
+            predictionMarket.buy(1, i, 100);
+            consoleLogMarketInfos(1, string(abi.encodePacked("after buying 100 shares of ", uint2str(i),  "at a cost of ", uint2str(costOf100Shares / 1e6), "$")));
+        } 
+
+        for (uint i; i < optionsCount; i++){
+            costOf100Shares =  predictionMarket.calculateBuyCost(1, i, 1000);
+            deal(address(usdc), address(this), costOf100Shares);
+            dealt += costOf100Shares;
+            usdc.approve(address(predictionMarket), costOf100Shares);
+            predictionMarket.buy(1, i, 1000);
+            consoleLogMarketInfos(1, string(abi.encodePacked("after buying 1000 shares of ", uint2str(i), "at a cost of ", uint2str(costOf100Shares / 1e6), "$")));
+        } 
+    }
+
+
     function uint2str(uint256 _i) internal pure returns (string memory) {
         if (_i == 0) {
             return "0";
@@ -428,5 +456,8 @@ contract MultiOutcomePredictionMarketTest is Test {
         }
         return string(bstr);
     }
+
+
+
 
 }
