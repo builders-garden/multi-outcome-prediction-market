@@ -86,8 +86,8 @@ interface IMultiOutcomePredictionMarket {
     
     event MarketCreated(uint indexed marketId, string[] optionNames);
     event MarketResolved(uint indexed marketId, uint winningOptionIndex, string winningOptionName);
-    event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost);
-    event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn);
+    event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost, uint currentCost, uint timestamp);
+    event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn, uint currentCost, uint timestamp);
     event Withdrawal(address indexed user, uint indexed marketId, uint shares, uint reward);
 
     /**
@@ -142,13 +142,11 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
     mapping(address => uint) internal userVolume; /// @dev Used for recovery purposes only
     uint256 public marketCount;
     uint256 public constant TOTAL_PRICE = 1e6;
-    uint256 public constant IMPACT_POWER_SCALE = 1e4;
-    uint256 public constant LINEAR_POWER = 1e3;    /// @dev 1.0 scaled
-    uint256 public constant BASE_IMPACT_FACTOR = 100;
+    uint256 public constant BASE_IMPACT_FACTOR = 500;
     address public  USDC_BASE_SEPOLIA;
     address public admin;
     bool public isEmergencyState;
-
+    
     /**
      * @notice Contract constructor
      * @param _admin Address of the contract administrator
@@ -279,7 +277,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         _updateMarketPrices(marketId);
 
-        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost);
+        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost, market.options[optionId].price, block.timestamp);
     }
 
     /**
@@ -294,23 +292,40 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         require(!isEmergencyState, "Contract is paused");
         require(!market.resolved, "Market is resolved");
         require(optionId < market.options.length, "Invalid option ID");
-        require(quantity > 0, "quantity must be greater than zero");
+        require(quantity > 0, "Quantity must be greater than zero");
         require(userShares.shares[optionId] >= quantity, "Not enough shares to sell");
-        require(marketId <= marketCount, "Market dosen't exists");
-        
-        
+        require(marketId <= marketCount, "Market doesn't exist");
+
         uint sellReturn = calculateSellReturn(marketId, optionId, quantity);
+        
+        // Check for underflow before subtracting
+        if (userVolume[msg.sender] < sellReturn) {
+            // If underflow would occur, set userVolume to zero
+            userVolume[msg.sender] - market.prizePool;
+            
+        } else {
+            userVolume[msg.sender] -= sellReturn;
+        }
+
+        if (market.prizePool < sellReturn) {
+            // If underflow would occur, set prizePool to zero
+            sellReturn = market.prizePool;
+            market.prizePool = 0;
+        } else {
+            market.prizePool -= sellReturn;
+        }
+
+        // Update shares
         market.options[optionId].shares -= quantity;
         userShares.shares[optionId] -= quantity;
 
-        userVolume[msg.sender] -= sellReturn;
-        market.prizePool -= sellReturn;
-
+        // Transfer funds to the user
         IERC20(USDC_BASE_SEPOLIA).transfer(msg.sender, sellReturn);
 
+        // Update market prices
         _updateMarketPrices(marketId);
-        
-        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn);
+
+        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn, market.options[optionId].price, block.timestamp);
     }
 
     /**
@@ -508,8 +523,17 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         if (shares == 0) return 0;
         if (shares == 1) return BASE_IMPACT_FACTOR;
         
-        uint256 scaledShares = shares * IMPACT_POWER_SCALE;    
-        return (BASE_IMPACT_FACTOR * scaledShares) / IMPACT_POWER_SCALE;
+        // To prevent overflow, we'll do the multiplication in chunks
+        uint256 scaledShares = shares;
+        
+        // First scale down the BASE_IMPACT_FACTOR to prevent overflow
+        uint256 scaledImpact = BASE_IMPACT_FACTOR / 100;  // Scale down by 100
+        
+        // Then do the multiplication and scaling
+        uint256 impact = (scaledImpact * scaledShares * 100);  // Scale back up
+        
+        // Apply final scaling
+        return impact;
     }
 
     /**

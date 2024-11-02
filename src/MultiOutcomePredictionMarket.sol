@@ -25,7 +25,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
     address public  USDC_BASE_SEPOLIA;
     address public admin;
     bool public isEmergencyState;
-
+    
     /**
      * @notice Contract constructor
      * @param _admin Address of the contract administrator
@@ -156,7 +156,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         _updateMarketPrices(marketId);
 
-        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost);
+        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost, market.options[optionId].price, block.timestamp);
     }
 
     /**
@@ -205,7 +205,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         // Update market prices
         _updateMarketPrices(marketId);
 
-        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn);
+        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn, market.options[optionId].price, block.timestamp);
     }
 
     /**
