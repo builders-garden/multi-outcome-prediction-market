@@ -86,8 +86,8 @@ interface IMultiOutcomePredictionMarket {
     
     event MarketCreated(uint indexed marketId, string[] optionNames);
     event MarketResolved(uint indexed marketId, uint winningOptionIndex, string winningOptionName);
-    event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost, uint currentCost, uint timestamp);
-    event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn, uint currentCost, uint timestamp);
+    event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost, uint[] updatedPrices, uint timestamp);
+    event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn, uint[] updatedPrices, uint timestamp);
     event Withdrawal(address indexed user, uint indexed marketId, uint shares, uint reward);
 
     /**
@@ -262,7 +262,7 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
             uint[] memory newUserSharesArr = new uint[](market.options.length);
             userShares.shares = newUserSharesArr;
         }
-
+    
         // Calculate cost BEFORE modifying state
         uint cost = calculateBuyCost(marketId, optionId, quantity);
 
@@ -277,7 +277,9 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         _updateMarketPrices(marketId);
 
-        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost, market.options[optionId].price, block.timestamp);
+        (uint[] memory prices, , ) = getMarketInfo(marketId);
+
+        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost, prices, block.timestamp);
     }
 
     /**
@@ -325,7 +327,10 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         // Update market prices
         _updateMarketPrices(marketId);
 
-        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn, market.options[optionId].price, block.timestamp);
+
+        (uint[] memory prices, , ) = getMarketInfo(marketId);
+
+        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn, prices, block.timestamp);
     }
 
     /**
