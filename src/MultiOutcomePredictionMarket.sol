@@ -156,7 +156,10 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
 
         _updateMarketPrices(marketId);
 
-        emit BoughtShares(msg.sender, marketId, optionId, quantity, cost, market.options[optionId].price, block.timestamp);
+    
+        (uint[] memory prices, , ) = getMarketInfo(marketId);
+
+        emit SoldShares(msg.sender, marketId, optionId, quantity, cost, prices, block.timestamp);
     }
 
     /**
@@ -205,7 +208,10 @@ contract MultiOutcomePredictionMarket is IMultiOutcomePredictionMarket {
         // Update market prices
         _updateMarketPrices(marketId);
 
-        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn, market.options[optionId].price, block.timestamp);
+        
+        (uint[] memory prices, , ) = getMarketInfo(marketId);
+
+        emit SoldShares(msg.sender, marketId, optionId, quantity, sellReturn, prices, block.timestamp);
     }
 
     /**

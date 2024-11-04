@@ -5,8 +5,8 @@ interface IMultiOutcomePredictionMarket {
     
     event MarketCreated(uint indexed marketId, string[] optionNames);
     event MarketResolved(uint indexed marketId, uint winningOptionIndex, string winningOptionName);
-    event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost, uint currentCost, uint timestamp);
-    event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn, uint currentCost, uint timestamp);
+    event BoughtShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalCost, uint[] prices, uint timestamp);
+    event SoldShares(address indexed user, uint indexed marketId, uint optionId, uint amount, uint totalReturn, uint[] prices, uint timestamp);
     event Withdrawal(address indexed user, uint indexed marketId, uint shares, uint reward);
 
     /**

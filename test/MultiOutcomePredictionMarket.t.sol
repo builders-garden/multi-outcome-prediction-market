@@ -30,7 +30,6 @@ contract MultiOutcomePredictionMarketTest is Test {
         optionNames[6] = "Caso";
         optionNames[7] = "Blackicon";
 
-        bool isQuadratic = true;
 
         predictionMarket.createMarket(initialOptionPrices, optionNames);
         
